@@ -39,6 +39,38 @@ def fetch_images(soup, base_url):
         images.append(dict(name=name, url=img_url))
     return images
 
+def fetch_link():
+    url = _url.get()
+    config['links'] = []
+    _links.set(())  # initialised as an empty tuple
+    try:
+        page = requests.get(url)
+    except requests.RequestException as err:
+        sb(str(err))
+    else:
+        soup = BeautifulSoup(page.content, 'html.parser')
+        links = fetch_links(soup, url)
+        if links:
+            _links.set(tuple(link['url'] for link in links))
+            sb('External links found: {}'.format(len(links)))
+        else:
+            sb('No external links found')
+        config['links'] = links
+
+
+def fetch_links(soup, base_url):
+    links = []
+    base_url = base_url.rstrip('/')  # Remove trailing slash for comparison
+    for a in soup.findAll('a', href=True):
+        href = a.get('href')
+
+        # Check if the link is external and does not contain the base URL
+        if (href.startswith('http://') or href.startswith('https://')) and (base_url not in href):
+            name = href.split('/')[-1]
+            links.append(dict(name=name, url=href))
+
+    return links
+
 def fetch_title():
     url = _url.get()
 
@@ -50,7 +82,7 @@ def fetch_title():
         soup = BeautifulSoup(page.content, 'html.parser')
         title_tag = soup.find('title')
         if title_tag:
-            sb('Title found found: {}'.format(title_tag))
+            sb('Title found found: {}'.format(title_tag.text))
         else:
             sb('No title found')
 
@@ -132,20 +164,25 @@ if __name__ == "__main__": # execute logic if run directly
     _fetch_btn.grid(row=1, column=1, sticky=W, padx=5)
 
     _fetch_btn = ttk.Button(
-        _url_frame, text='Fetch link', command=fetch_url) # create button
+        _url_frame, text='Fetch link', command=fetch_link) # create button
     # fetch_link() is callback for button press
     _fetch_btn.grid(row=2, column=1, sticky=W, padx=5)
 
-    # img_frame contains Lisbox and Radio Frame
-    _img_frame = ttk.LabelFrame(
-        _mainframe, text='Content', padding='9 0 0 0')
+    # Images Listbox
+    _img_frame = ttk.LabelFrame(_mainframe, text='Images', padding='9 0 0 0')
     _img_frame.grid(row=1, column=0, sticky=(N, S, E, W))
 
-    # Set _img_frame as parent of Listbox and _images is variable tied to
     _images = StringVar()
-    _img_listbox = Listbox(
-        _img_frame, listvariable=_images, height=6, width=25)
+    _img_listbox = Listbox(_img_frame, listvariable=_images, height=6, width=25)
     _img_listbox.grid(row=0, column=0, sticky=(E, W), pady=5)
+
+    # Links Listbox
+    _link_frame = ttk.LabelFrame(_mainframe, text='Links', padding='9 0 0 0')
+    _link_frame.grid(row=2, column=0, sticky=(N, S, E, W))
+
+    _links = StringVar()
+    _link_listbox = Listbox(_link_frame, listvariable=_links, height=6, width=50)
+    _link_listbox.grid(row=0, column=0, sticky=(E, W), pady=5)
 
 
     #Scrollbar can move vertical
@@ -181,7 +218,7 @@ if __name__ == "__main__": # execute logic if run directly
     # save command saves images to be listed in Listbox after parsing
     _scrape_btn = ttk.Button(
         _mainframe, text='Scrape!', command=save)
-    _scrape_btn.grid(row=2, column=0, sticky=E, pady=5)
+    _scrape_btn.grid(row=4, column=0, sticky=E, pady=5)
 
     _status_frame = ttk.Frame(
         _root, relief='sunken', padding='2 2 2 2')
